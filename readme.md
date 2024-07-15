@@ -1,6 +1,8 @@
 # Objective
 
-This script generates a summary of applicant/candidate details from Brac University erecruitment PDF CVs (if you don't know what these files are, don't waste your time going through this repo)! The python script parses PDF files and recordes:
+This script generates a summary of applicant/candidate details from Brac University erecruitment PDF CVs (if you don't know what these files are, don't waste your time going through this repo)! 
+
+The python script parses PDF files and recordes:
 * Candidate's name
 * Candidate's application serial number
 * Candidate's obtained GPA/CGPA for undegraduate degree
