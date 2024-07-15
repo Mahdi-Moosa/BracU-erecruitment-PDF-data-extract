@@ -7,56 +7,53 @@ import os
 
 
 def extract_tables_from_pdf(file_path):
-    """Extracts tables from a PDF into a dictionary of DataFrames, merging tables if needed."""
+    """Extracts tables from a PDF into a dictionary of DataFrames.
+
+    Args:
+        file_path (str): The path to the PDF file.
+
+    Returns:
+        dict: A dictionary where keys are table names ("table_1", "table_2", etc.) 
+              and values are the corresponding DataFrames.
+    """
     table_dfs = {}
-    
-    # Read all tables from the PDF, specifying pages to read (defaults to 'all')
-    tables = tabula.read_pdf(file_path, pages="all", multiple_tables=True, lattice=True)  
 
-    # Convert each table to a DataFrame and store in the dictionary
-    for i, table in enumerate(tables):
-        table_dfs[f"table_{i+1}"] = pd.DataFrame(table) 
-    
-    if set(table_dfs['table_1'].columns) == set(table_dfs['table_2'].columns):
-        table_dfs['table_1'] = pd.concat([table_dfs['table_1'], table_dfs['table_2']])
-    # tables_dict = {
-    #     f"table_{i+1}": pd.DataFrame(table)
-    #     for i, table in enumerate(tabula.read_pdf(file_path, pages=pages, multiple_tables=True, lattice=True))
-    # }
-    # print(tables_dict)
-    # # Check and merge consecutive tables with same columns
-    # if set(tables_dict['table_1'].columns) == set(tables_dict['table_2'].columns):
-    #         tables_dict['table_1'] = pd.concat([tables_dict['table_1'], tables_dict['table_2']])
-    # # for i in range(1, len(tables_dict)):
-    # #     table1_name = f"table_{i}"
-    # #     table2_name = f"table_{i+1}"
-    # #     if set(tables_dict[table1_name].columns) == set(tables_dict[table2_name].columns):
-    # #         tables_dict[table1_name] = pd.concat([tables_dict[table1_name], tables_dict[table2_name]])
-    #         # del tables_dict[table2_name]
-            
-    # # print(len(tables_dict))
-    # # print(tables_dict[table_2])
-
+    # Read all tables, handling potential table splits by merging them based on column names.
+    all_tables = tabula.read_pdf(file_path, pages="all", multiple_tables=True, lattice=True)
+    for table in all_tables:
+        df = pd.DataFrame(table)
+        if table_dfs and set(df.columns) == set(table_dfs["table_1"].columns):
+            # If columns match the first table, assume it's a continuation and concatenate.
+            table_dfs["table_1"] = pd.concat([table_dfs["table_1"], df])
+        else:
+            # Otherwise, add it as a new table.
+            table_dfs[f"table_{len(table_dfs) + 1}"] = df
 
     return table_dfs
 
 
 def extract_gpa(df, column_name):
-    """Extracts and standardizes GPA values from a DataFrame column."""
+    """Extracts and standardizes GPA values from a specified DataFrame column.
 
-    if column_name not in df.columns or df[column_name].dtype == 'float64':
+    Args:
+        df (pd.DataFrame): The DataFrame containing the GPA data.
+        column_name (str): The name of the column with GPA values.
+
+    Returns:
+        pd.DataFrame: The DataFrame with standardized GPA values in the specified column.
+    """
+    if column_name not in df.columns or df[column_name].dtype == 'float64':  # Early exit if not needed
         return df
-
     def _standardize_gpa(value):
+        """Helper function to standardize GPA to a 4.0 scale."""
         if isinstance(value, float):
-            return value
-        match = re.search(r"(\d+\.?\d*)\s*(?:\n*\s*out\s+of\s*\n*|/)(\d+\.?\d*)", str(value), re.IGNORECASE) #re.search(r"(\d+\.?\d*)\s*(?:out\s+of|/)(\d+\.?\d*)", str(value), re.IGNORECASE)
+            return value  # Already a float, no need to process further
+        match = re.search(r"(\d+\.?\d*)\s*(?:\n*\s*out\s+of\s*\n*|/)(\d+\.?\d*)", str(value), re.IGNORECASE)
         if match:
             gpa, scale = map(float, match.groups())
             return (gpa / scale) * 4 if scale != 4 else gpa
-        return np.nan
-
-    df = df.copy()
+        return np.nan  # Not a recognized GPA format
+    df = df.copy()  # Avoid modifying the original DataFrame
     df[column_name] = df[column_name].astype(str).apply(_standardize_gpa)
     return df
 
